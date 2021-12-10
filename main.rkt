@@ -9,7 +9,7 @@
 
 (define (literal-read in) (syntax->datum (literal-read-syntax #f in)))
 
-(define (convert src S)
+(define (convert src origin-stx S)
   (define idx (string-index S "$"))
   (define exp (read-syntax src (open-input-string (substring S (add1 idx)))))
   (define end-idx (+ idx (string-length (~a (syntax->datum exp)))))
@@ -17,7 +17,9 @@
   (define after-str (substring S (add1 end-idx)))
   (with-syntax ([fmt (string-append before-str "~a" after-str)]
                 [e exp])
-    #'(format fmt e)))
+    (syntax/loc
+        (syntax-srcloc origin-stx)
+      (format fmt e))))
 (define (literal-read-syntax src in)
   (define ss
     (let loop ([r '()])
@@ -30,7 +32,7 @@
                (if (string? (syntax->datum s))
                    (let ()
                      (define S (syntax->datum s))
-                     (convert src S))
+                     (convert src s S))
                    s))
              ss))
   (with-syntax ([(s ...) ss])
