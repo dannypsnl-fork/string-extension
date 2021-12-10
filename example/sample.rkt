@@ -1,4 +1,4 @@
-#lang reader string-extension
+#lang string-extension
 
 (define x 1)
 (define y 2)
