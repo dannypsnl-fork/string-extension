@@ -11,15 +11,17 @@
 
 (define (convert src origin-stx S)
   (define idx (string-index S "$"))
-  (define exp (read-syntax src (open-input-string (substring S (add1 idx)))))
-  (define end-idx (+ idx (string-length (~a (syntax->datum exp)))))
-  (define before-str (substring S 0 idx))
-  (define after-str (substring S (add1 end-idx)))
-  (with-syntax ([fmt (string-append before-str "~a" after-str)]
-                [e exp])
-    (syntax/loc
-        (syntax-srcloc origin-stx)
-      (format fmt e))))
+  (if idx
+      (let* ([exp (read-syntax src (open-input-string (substring S (add1 idx))))]
+             [end-idx (+ idx (string-length (~a (syntax->datum exp))))]
+             [after-stx (convert src origin-stx (substring S (add1 end-idx)))])
+        (with-syntax ([fmt (string-append (substring S 0 idx) "~a")]
+                      [e exp]
+                      [a-stx after-stx])
+          (syntax/loc
+              (syntax-srcloc origin-stx)
+            (format (string-append fmt a-stx) e))))
+      (syntax/loc (syntax-srcloc origin-stx) "")))
 (define (literal-read-syntax src in)
   (define ss
     (let loop ([r '()])
@@ -27,19 +29,16 @@
       (if (eof-object? stx)
           r
           (loop (append r (list stx))))))
-  (set! ss
-        (map (lambda (s)
-               (if (string? (syntax->datum s))
-                   (let ()
-                     (define S (syntax->datum s))
-                     (convert src s S))
-                   s))
-             ss))
-  (with-syntax ([(s ...) ss])
+  (with-syntax ([(s ...) (map (lambda (s)
+                                (if (string? (syntax->datum s))
+                                    (let ()
+                                      (define S (syntax->datum s))
+                                      (convert src s S))
+                                    s))
+                              ss)])
     (strip-context
      #'(module anything racket/base
-         s ...)))
-  )
+         s ...))))
 
 (define (string-index hay needle)
   (define n (string-length needle))
