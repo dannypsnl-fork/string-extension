@@ -3,12 +3,21 @@
 (provide (rename-out [literal-read read]
                      [literal-read-syntax read-syntax]))
 
-(require racket/port
-         syntax/strip-context
-         racket/sequence)
+(require syntax/strip-context
+         syntax/to-string
+         racket/syntax-srcloc)
 
 (define (literal-read in) (syntax->datum (literal-read-syntax #f in)))
 
+(define (convert src S)
+  (define idx (string-index S "$"))
+  (define exp (read-syntax src (open-input-string (substring S (add1 idx)))))
+  (define end-idx (+ idx (string-length (~a (syntax->datum exp)))))
+  (define before-str (substring S 0 idx))
+  (define after-str (substring S (add1 end-idx)))
+  (with-syntax ([fmt (string-append before-str "~a" after-str)]
+                [e exp])
+    #'(format fmt e)))
 (define (literal-read-syntax src in)
   (define ss
     (let loop ([r '()])
@@ -21,8 +30,7 @@
                (if (string? (syntax->datum s))
                    (let ()
                      (define S (syntax->datum s))
-                     (displayln (string-index S "$"))
-                     s)
+                     (convert src S))
                    s))
              ss))
   (with-syntax ([(s ...) ss])
